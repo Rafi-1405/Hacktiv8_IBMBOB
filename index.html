@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="AutoSpec QA — Transform user stories into structured BDD Gherkin test cases using AI." />
+  <title>AutoSpec QA — BDD Test Case Generator</title>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: ['attribute', '[data-theme="dark"]'],
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', 'monospace'],
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Theme tokens ─────────────────────────────────────────────────── */
+    :root {
+      --bg:          #080b12;
+      --surface:     #0e1320;
+      --surface-2:   #141929;
+      --surface-3:   #1c2338;
+      --border:      #252d42;
+      --border-soft: #1e2740;
+      --text:        #e2e8f5;
+      --text-2:      #a0aec0;
+      --muted:       #566380;
+      --accent:      #5b73f5;
+      --accent-glow: rgba(91,115,245,0.18);
+      --accent-dim:  rgba(91,115,245,0.08);
+      --positive:    #2dd4a0;
+      --negative:    #f0605c;
+      --edge:        #f0a050;
+      --pin:         #f5c842;
+    }
+    [data-theme="light"] {
+      --bg:          #f0f2f8;
+      --surface:     #ffffff;
+      --surface-2:   #f5f7fc;
+      --surface-3:   #eaecf5;
+      --border:      #d4d9ea;
+      --border-soft: #e2e5f0;
+      --text:        #1a1f35;
+      --text-2:      #4a5568;
+      --muted:       #8893ab;
+      --accent:      #4355e8;
+      --accent-glow: rgba(67,85,232,0.12);
+      --accent-dim:  rgba(67,85,232,0.06);
+      --positive:    #0d9e74;
+      --negative:    #d93c38;
+      --edge:        #c97a20;
+      --pin:         #c9991a;
+    }
+
+    /* ── Base ──────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Scrollbar ─────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar              { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track        { background: transparent; }
+    ::-webkit-scrollbar-thumb        { background: var(--border); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover  { background: var(--accent); }
+
+    /* ── Layout grid ───────────────────────────────────────────────────── */
+    .app-shell {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+    }
+    @media (max-width: 960px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr;
+      }
+    }
+
+    /* ── Header ────────────────────────────────────────────────────────── */
+    .app-header {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    /* ── Left panel (input) ────────────────────────────────────────────── */
+    .panel-input {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 57px);
+      position: sticky;
+      top: 57px;
+      overflow-y: auto;
+    }
+    @media (max-width: 960px) {
+      .panel-input { height: auto; position: relative; top: 0; border-right: none; border-bottom: 1px solid var(--border); }
+    }
+
+    /* ── Right panel (outputs) ─────────────────────────────────────────── */
+    .panel-output {
+      background: var(--bg);
+      overflow-y: auto;
+      height: calc(100vh - 57px);
+      position: relative;
+    }
+    @media (max-width: 960px) { .panel-output { height: auto; } }
+
+    /* ── Card ──────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    /* ── Textarea ──────────────────────────────────────────────────────── */
+    textarea {
+      background: var(--surface-2) !important;
+      border: 1.5px solid var(--border) !important;
+      color: var(--text) !important;
+      resize: vertical;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      line-height: 1.65;
+    }
+    textarea::placeholder { color: var(--muted) !important; opacity: 1; }
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    /* ── Buttons ───────────────────────────────────────────────────────── */
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-radius: 8px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      transition: filter 0.15s, transform 0.1s;
+      min-height: 44px;
+      min-width: 44px;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary:hover:not(:disabled)  { filter: brightness(1.14); }
+    .btn-primary:active:not(:disabled) { transform: scale(0.97); }
+    .btn-primary:disabled              { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary:focus-visible         { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      border-radius: 7px;
+      transition: background 0.15s, color 0.15s;
+      min-height: 32px;
+      min-width: 32px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 0 10px;
+    }
+    .btn-ghost:hover       { background: var(--surface-3); color: var(--text); }
+    .btn-ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* ── Example pills ─────────────────────────────────────────────────── */
+    .example-pill {
+      background: var(--accent-dim);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      border-radius: 99px;
+      padding: 4px 12px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .example-pill:hover { background: var(--accent-glow); border-color: var(--accent); color: var(--text); }
+    .example-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* ── Spinner ───────────────────────────────────────────────────────── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.25);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Output card (result item) ─────────────────────────────────────── */
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      animation: cardIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .result-card:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+    .result-card.pinned {
+      border-color: var(--pin);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--pin) 30%, transparent);
+    }
+    .result-card.dragging {
+      opacity: 0.45;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .result-card.drag-over { border-color: var(--accent); border-style: dashed; }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Card header ───────────────────────────────────────────────────── */
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      cursor: pointer;
+      user-select: none;
+      background: var(--surface-2);
+      border-bottom: 1px solid transparent;
+      transition: background 0.15s;
+    }
+    .card-header:hover { background: var(--surface-3); }
+    .result-card.open .card-header { border-bottom-color: var(--border); }
+
+    /* ── Chevron ───────────────────────────────────────────────────────── */
+    .chevron {
+      width: 14px; height: 14px;
+      color: var(--muted);
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s;
+      flex-shrink: 0;
+    }
+    .result-card.open .chevron { transform: rotate(90deg); color: var(--accent); }
+
+    /* ── Gherkin body ──────────────────────────────────────────────────── */
+    .gherkin-body {
+      display: none;
+      padding: 0;
+    }
+    .result-card.open .gherkin-body { display: block; }
+
+    /* ── Gherkin pre ───────────────────────────────────────────────────── */
+    .gherkin-pre {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.79rem;
+      line-height: 1.75;
+      padding: 16px 18px;
+      overflow-x: auto;
+      white-space: pre;
+      tab-size: 2;
+      background: var(--surface-2);
+      max-height: 520px;
+      overflow-y: auto;
+    }
+
+    /* ── Gherkin syntax colours ────────────────────────────────────────── */
+    .gk-feature  { color: #a78bfa; font-weight: 700; }
+    .gk-comment  { color: var(--muted); font-style: italic; }
+    .gk-section  { color: var(--muted); font-style: italic; letter-spacing: 0.02em; }
+    .gk-scenario { color: #60a5fa; font-weight: 600; }
+    .gk-given    { color: #34d399; }
+    .gk-when     { color: #f59e0b; }
+    .gk-then     { color: #a78bfa; }
+    .gk-and      { color: #94a3b8; }
+    .gk-but      { color: #f0605c; }
+
+    /* ── Category dividers inside gherkin ──────────────────────────────── */
+    .gk-divider-positive { color: var(--positive); font-weight: 700; font-style: normal; }
+    .gk-divider-negative { color: var(--negative); font-weight: 700; font-style: normal; }
+    .gk-divider-edge     { color: var(--edge);     font-weight: 700; font-style: normal; }
+
+    /* ── Card action bar ───────────────────────────────────────────────── */
+    .card-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    /* ── Pin indicator ─────────────────────────────────────────────────── */
+    .pin-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--pin);
+      flex-shrink: 0;
+    }
+
+    /* ── Drag handle ───────────────────────────────────────────────────── */
+    .drag-handle {
+      cursor: grab;
+      color: var(--muted);
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color 0.15s;
+      flex-shrink: 0;
+    }
+    .drag-handle:hover { color: var(--text-2); }
+    .drag-handle:active { cursor: grabbing; }
+
+    /* ── Empty state ───────────────────────────────────────────────────── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 24px;
+      text-align: center;
+      gap: 12px;
+    }
+
+    /* ── Status indicator ──────────────────────────────────────────────── */
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .s-idle    { background: var(--muted); }
+    .s-loading { background: var(--accent); animation: pulse 1s infinite; }
+    .s-success { background: var(--positive); }
+    .s-error   { background: var(--negative); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ── Toast ─────────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 20px; right: 20px;
+      z-index: 9999;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s, transform 0.25s;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Char counter ──────────────────────────────────────────────────── */
+    .char-warn  { color: var(--edge) !important; }
+    .char-over  { color: var(--negative) !important; }
+
+    /* ── Timestamp badge ───────────────────────────────────────────────── */
+    .ts-badge {
+      font-size: 0.68rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* ── Toolbar section label ─────────────────────────────────────────── */
+    .toolbar-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ── Output count badge ────────────────────────────────────────────── */
+    .count-badge {
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+      border-radius: 99px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      min-width: 20px;
+      height: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6px;
+    }
+
+    /* ── Skeleton ──────────────────────────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 4px;
+    }
+    @keyframes shimmer { from{background-position:200% 0} to{background-position:-200% 0} }
+
+    /* ── Focus visible ring ────────────────────────────────────────────── */
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  </style>
+</head>
+
+<body>
+  <!-- Skip to content (WCAG 2.4.1) -->
+  <a href="#output-region"
+     class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50
+            focus:px-4 focus:py-2 focus:rounded-lg focus:text-white focus:font-semibold"
+     style="background: var(--accent);">
+    Skip to output
+  </a>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- HEADER                                                              -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <header class="app-header" role="banner">
+    <div class="flex items-center justify-between px-5 h-14 max-w-[1600px] mx-auto">
+      <!-- Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+             style="background: var(--accent);" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white"
+               stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 11 12 14 22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </div>
+        <div class="leading-none">
+          <div class="font-bold text-sm tracking-tight">AutoSpec QA</div>
+          <div class="text-xs mt-0.5" style="color: var(--muted);">BDD Gherkin Generator</div>
+        </div>
+      </div>
+
+      <!-- Right controls -->
+      <div class="flex items-center gap-3">
+        <!-- Status -->
+        <div class="hidden sm:flex items-center gap-2 text-xs" style="color: var(--muted);"
+             aria-live="polite">
+          <span id="status-dot" class="status-dot s-idle" aria-hidden="true"></span>
+          <span id="status-text">Ready</span>
+        </div>
+        <!-- Clear all -->
+        <button id="clear-all-btn" type="button" class="btn-ghost hidden"
+                aria-label="Clear all generated outputs">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+          Clear all
+        </button>
+        <!-- Theme toggle -->
+        <button id="theme-toggle" type="button" class="btn-ghost" style="min-width:36px;width:36px;height:36px;padding:0;"
+                aria-label="Toggle dark/light mode">
+          <svg id="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <svg id="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true" class="hidden">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- APP SHELL                                                           -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="app-shell max-w-[1600px] mx-auto">
+
+    <!-- ═══════════════════════════════════ LEFT PANEL — INPUT ═════════ -->
+    <aside class="panel-input p-5 flex flex-col gap-4" aria-label="Input panel">
+
+      <!-- Section label -->
+      <div class="flex items-center gap-2">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true" style="color: var(--accent);">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        <span class="toolbar-label">Requirement Input</span>
+      </div>
+
+      <!-- Textarea -->
+      <div class="relative flex-1 flex flex-col gap-1.5">
+        <div class="flex items-center justify-between">
+          <label for="user-story" class="text-xs font-medium" style="color: var(--text-2);">
+            User story or problem statement
+          </label>
+          <span id="char-count" class="text-xs tabular-nums" style="color: var(--muted);"
+                aria-live="polite" aria-label="Character count">0 / 8000</span>
+        </div>
+        <textarea
+          id="user-story"
+          name="user-story"
+          rows="13"
+          maxlength="8000"
+          placeholder="Paste your User Story, PRD, or casual problem statement here…
+
+Examples:
+• As a visually impaired user, I want the app to be fully navigable by keyboard and screen reader.
+• User Story: As a customer, I want to reset my password via email. AC: link expires in 24h; old password stays valid until new one is set."
+          class="w-full p-3.5 rounded-lg text-sm font-sans flex-1"
+          aria-required="true"
+          aria-describedby="char-count input-hint"
+          spellcheck="true"
+          autocomplete="off"
+        ></textarea>
+        <p id="input-error" class="text-xs hidden" style="color: var(--negative);"
+           role="alert" aria-live="assertive"></p>
+        <p id="input-hint" class="text-xs" style="color: var(--muted);">
+          Tip: <kbd class="px-1 py-0.5 rounded text-xs"
+                    style="background:var(--surface-3);border:1px solid var(--border);">Ctrl+Enter</kbd>
+          to generate
+        </p>
+      </div>
+
+      <!-- Example pills -->
+      <div>
+        <p class="text-xs mb-2" style="color: var(--muted);">Quick examples:</p>
+        <div class="flex flex-wrap gap-1.5" role="list">
+          <button type="button" class="example-pill" data-example="password-reset"
+                  aria-label="Load password reset example">🔑 Password Reset</button>
+          <button type="button" class="example-pill" data-example="a11y"
+                  aria-label="Load accessibility example">♿ Accessibility</button>
+          <button type="button" class="example-pill" data-example="checkout"
+                  aria-label="Load checkout flow example">🛒 Checkout</button>
+        </div>
+      </div>
+
+      <!-- Generate button -->
+      <button id="generate-btn" type="button"
+              class="btn-primary w-full flex items-center justify-center gap-2.5 px-5 py-3 text-sm"
+              aria-label="Generate BDD Gherkin test cases" aria-busy="false">
+        <svg id="btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+        <span id="btn-label">Generate Test Cases</span>
+        <span id="btn-spinner" class="spinner hidden" aria-hidden="true"></span>
+      </button>
+
+      <!-- Footer note -->
+      <div class="mt-auto pt-3 border-t flex flex-col gap-1.5" style="border-color: var(--border);">
+        <div class="flex items-center gap-2 text-xs" style="color: var(--muted);">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          Outputs saved in browser localStorage
+        </div>
+        <div class="flex items-center gap-2 text-xs" style="color: var(--muted);">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          Powered by Gemini 3.8 Flash
+        </div>
+      </div>
+    </aside>
+
+    <!-- ═══════════════════════════════════ RIGHT PANEL — OUTPUT ═══════ -->
+    <main id="output-region" class="panel-output" aria-label="Generated test cases">
+
+      <!-- Output toolbar -->
+      <div id="output-toolbar" class="hidden sticky top-0 z-10 flex items-center justify-between px-5 py-3"
+           style="background: var(--bg); border-bottom: 1px solid var(--border-soft);">
+        <div class="flex items-center gap-2.5">
+          <span class="toolbar-label">Results</span>
+          <span id="output-count" class="count-badge">0</span>
+        </div>
+        <div class="flex items-center gap-2 text-xs" style="color: var(--muted);">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/>
+            <circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>
+          </svg>
+          Drag to reorder
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div id="empty-state" class="empty-state">
+        <div style="width:56px;height:56px;border-radius:14px;background:var(--surface-2);
+                    border:1px solid var(--border);display:flex;align-items:center;justify-content:center;"
+             aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
+               style="color: var(--muted);">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-medium" style="color: var(--text-2);">No test cases yet</p>
+          <p class="text-xs mt-1" style="color: var(--muted);">
+            Paste a requirement and click Generate to get started.
+          </p>
+        </div>
+      </div>
+
+      <!-- Results list (drag-and-drop zone) -->
+      <div id="results-list" class="p-4 flex flex-col gap-3" role="list"
+           aria-label="Generated Gherkin test suites">
+      </div>
+
+    </main>
+  </div><!-- /app-shell -->
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- TOAST                                                               -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- JAVASCRIPT                                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <script>
+  (() => {
+    'use strict';
+
+    /* ── Constants ──────────────────────────────────────────────────────── */
+    const API_ENDPOINT   = '/generate';
+    const STORAGE_KEY    = 'autospec-qa-results-v2';
+    const MAX_CHARS      = 8000;
+    const WARN_CHARS     = 6000;
+
+    const EXAMPLES = {
+      'password-reset': `User Story: Password Reset via Email
+
+As a registered user who has forgotten my password,
+I want to reset it via a link sent to my registered email address,
+So that I can regain access to my account securely.
+
+Acceptance Criteria:
+- The system sends a password-reset email within 60 seconds of the request.
+- The reset link expires after 24 hours.
+- The old password remains valid until the new one is successfully set.
+- Users must confirm the new password by entering it twice.
+- Passwords must be at least 8 characters and include a number and a special character.`,
+
+      'a11y': `Accessibility Requirement for Elderly & Visually Impaired Users
+
+Our mobile banking app needs to be fully usable by elderly users and those with
+visual impairments. Key pain points:
+- Buttons are too small to tap accurately.
+- Screen readers do not announce balance changes.
+- Colour contrast is insufficient for low-vision users.
+- The app cannot be navigated with an external keyboard.
+- Error messages disappear too quickly for users with cognitive difficulties.
+
+All interactions must comply with WCAG 2.1 AA standards.`,
+
+      'checkout': `E-Commerce Checkout Flow
+
+User Story: As a shopper, I want to complete a purchase with my saved payment
+method so I can check out quickly without re-entering my card details.
+
+AC:
+- Guest checkout is available without account creation.
+- Saved cards are displayed; user selects one and confirms with CVV.
+- Total price (inc. tax & shipping) is shown before final confirmation.
+- A confirmation email is sent within 2 minutes of order placement.
+- If payment fails, the cart is preserved and an error message is shown.
+- Promo codes can be applied at checkout; invalid codes show a clear error.`,
+    };
+
+    /* ── DOM refs ───────────────────────────────────────────────────────── */
+    const textarea      = document.getElementById('user-story');
+    const charCount     = document.getElementById('char-count');
+    const inputError    = document.getElementById('input-error');
+    const generateBtn   = document.getElementById('generate-btn');
+    const btnLabel      = document.getElementById('btn-label');
+    const btnSpinner    = document.getElementById('btn-spinner');
+    const btnIcon       = document.getElementById('btn-icon');
+    const statusDot     = document.getElementById('status-dot');
+    const statusText    = document.getElementById('status-text');
+    const themeToggle   = document.getElementById('theme-toggle');
+    const iconMoon      = document.getElementById('icon-moon');
+    const iconSun       = document.getElementById('icon-sun');
+    const resultsList   = document.getElementById('results-list');
+    const emptyState    = document.getElementById('empty-state');
+    const outputToolbar = document.getElementById('output-toolbar');
+    const outputCount   = document.getElementById('output-count');
+    const clearAllBtn   = document.getElementById('clear-all-btn');
+    const toastEl       = document.getElementById('toast');
+
+    /* ── State ──────────────────────────────────────────────────────────── */
+    // Array of { id, title, gherkin, ts, pinned, open }
+    let results = [];
+    let toastTimer;
+    let dragSrcId = null;
+
+    /* ── Persistence ────────────────────────────────────────────────────── */
+    function saveResults() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(results)); } catch {}
+    }
+
+    function loadResults() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) results = JSON.parse(raw);
+      } catch { results = []; }
+    }
+
+    /* ── Theme ──────────────────────────────────────────────────────────── */
+    function applyTheme(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      iconMoon.classList.toggle('hidden', t === 'light');
+      iconSun.classList.toggle('hidden', t === 'dark');
+      localStorage.setItem('autospec-theme', t);
+    }
+    const savedTheme = localStorage.getItem('autospec-theme') ||
+      (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    applyTheme(savedTheme);
+    themeToggle.addEventListener('click', () => {
+      applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    });
+
+    /* ── Status helpers ─────────────────────────────────────────────────── */
+    function setStatus(state, text) {
+      statusDot.className = `status-dot s-${state}`;
+      statusText.textContent = text;
+    }
+
+    /* ── Toast ──────────────────────────────────────────────────────────── */
+    function showToast(msg, type = 'success') {
+      clearTimeout(toastTimer);
+      const isErr = type === 'error';
+      toastEl.style.cssText = isErr
+        ? 'background:rgba(240,96,92,0.15);border:1px solid rgba(240,96,92,0.35);color:var(--negative);'
+        : 'background:rgba(45,212,160,0.12);border:1px solid rgba(45,212,160,0.3);color:var(--positive);';
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2800);
+    }
+
+    /* ── Char counter ───────────────────────────────────────────────────── */
+    textarea.addEventListener('input', () => {
+      const n = textarea.value.length;
+      charCount.textContent = `${n} / ${MAX_CHARS}`;
+      charCount.className = 'text-xs tabular-nums';
+      if (n >= MAX_CHARS) charCount.classList.add('char-over');
+      else if (n >= WARN_CHARS) charCount.classList.add('char-warn');
+      else charCount.style.color = 'var(--muted)';
+      inputError.classList.add('hidden');
+      textarea.removeAttribute('aria-invalid');
+    });
+
+    /* ── Example pills ──────────────────────────────────────────────────── */
+    document.querySelectorAll('.example-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const k = btn.dataset.example;
+        if (EXAMPLES[k]) { textarea.value = EXAMPLES[k]; textarea.dispatchEvent(new Event('input')); textarea.focus(); }
+      });
+    });
+
+    /* ── Keyboard shortcut ──────────────────────────────────────────────── */
+    textarea.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); if (!generateBtn.disabled) generateBtn.click(); }
+    });
+
+    /* ── Gherkin highlighter ────────────────────────────────────────────── */
+    function highlight(raw) {
+      const esc = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return esc.split('\n').map(line => {
+        const t = line.trimStart();
+        if (/^Feature:/i.test(t))    return `<span class="gk-feature">${line}</span>`;
+        if (/^## POSITIVE/i.test(t)) return `<span class="gk-divider-positive">${line}</span>`;
+        if (/^## NEGATIVE/i.test(t)) return `<span class="gk-divider-negative">${line}</span>`;
+        if (/^## EDGE/i.test(t))     return `<span class="gk-divider-edge">${line}</span>`;
+        if (/^## /.test(t))          return `<span class="gk-section">${line}</span>`;
+        if (/^# /.test(t))           return `<span class="gk-comment">${line}</span>`;
+        if (/^Scenario/i.test(t))    return `<span class="gk-scenario">${line}</span>`;
+        return line.replace(
+          /^(\s*)(Given|When|Then|And|But)(\s)/,
+          (_, sp, kw, sp2) => {
+            const cls = {Given:'gk-given',When:'gk-when',Then:'gk-then',And:'gk-and',But:'gk-but'}[kw] || 'gk-and';
+            return `${sp}<span class="${cls}">${kw}</span>${sp2}`;
+          }
+        );
+      }).join('\n');
+    }
+
+    /* ── Title derivation: first non-empty non-boilerplate line ─────────── */
+    function deriveTitle(inputText) {
+      const lines = inputText.split('\n').map(l => l.trim()).filter(Boolean);
+      for (const l of lines) {
+        const clean = l
+          .replace(/^(user story|feature request|requirement|as a|given|when|then|and|but|#|-|\*|•)[\s:]+/i, '')
+          .trim();
+        if (clean.length > 8) {
+          return clean.length > 80 ? clean.slice(0, 77) + '…' : clean;
+        }
+      }
+      return 'Generated Test Suite';
+    }
+
+    /* ── Format timestamp ───────────────────────────────────────────────── */
+    function fmtTs(ts) {
+      const d = new Date(ts);
+      return d.toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    }
+
+    /* ── Render a single result card ────────────────────────────────────── */
+    function renderCard(r) {
+      const el = document.createElement('div');
+      el.className = 'result-card' + (r.pinned ? ' pinned' : '') + (r.open ? ' open' : '');
+      el.setAttribute('role', 'listitem');
+      el.setAttribute('draggable', 'true');
+      el.dataset.id = r.id;
+
+      el.innerHTML = `
+        <!-- Header (click to toggle) -->
+        <div class="card-header" role="button" tabindex="0"
+             aria-expanded="${r.open ? 'true' : 'false'}"
+             aria-controls="body-${r.id}"
+             aria-label="Toggle: ${r.title.replace(/"/g,'&quot;')}">
+          <!-- Drag handle -->
+          <span class="drag-handle" title="Drag to reorder" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/>
+              <circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>
+            </svg>
+          </span>
+          <!-- Chevron -->
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+          ${r.pinned ? '<span class="pin-dot" title="Pinned" aria-label="Pinned"></span>' : ''}
+          <!-- Title -->
+          <span class="flex-1 text-sm font-medium truncate" style="color:var(--text);"
+                title="${r.title.replace(/"/g,'&quot;')}">${escHtml(r.title)}</span>
+          <!-- Timestamp -->
+          <span class="ts-badge">${fmtTs(r.ts)}</span>
+        </div>
+
+        <!-- Collapseable body -->
+        <div id="body-${r.id}" class="gherkin-body">
+          <pre class="gherkin-pre" tabindex="0" aria-label="Gherkin output for: ${r.title.replace(/"/g,'&quot;')}">${highlight(r.gherkin)}</pre>
+          <!-- Action bar -->
+          <div class="card-actions">
+            <button class="btn-ghost copy-btn" data-id="${r.id}" aria-label="Copy Gherkin to clipboard">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              Copy
+            </button>
+            <button class="btn-ghost pin-btn" data-id="${r.id}"
+                    aria-label="${r.pinned ? 'Unpin' : 'Pin'} this result"
+                    style="${r.pinned ? 'color:var(--pin);border-color:var(--pin);' : ''}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="${r.pinned ? 'currentColor' : 'none'}"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+              </svg>
+              ${r.pinned ? 'Pinned' : 'Pin'}
+            </button>
+            <div class="flex-1"></div>
+            <button class="btn-ghost delete-btn" data-id="${r.id}"
+                    aria-label="Delete this result"
+                    style="color:var(--negative);border-color:transparent;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+              </svg>
+              Delete
+            </button>
+          </div>
+        </div>
+      `;
+
+      /* ── Toggle open/close ── */
+      const hdr = el.querySelector('.card-header');
+      function toggle() {
+        const r2 = results.find(x => x.id === r.id);
+        if (!r2) return;
+        r2.open = !r2.open;
+        el.classList.toggle('open', r2.open);
+        hdr.setAttribute('aria-expanded', String(r2.open));
+        saveResults();
+      }
+      hdr.addEventListener('click', toggle);
+      hdr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+
+      /* ── Copy ── */
+      el.querySelector('.copy-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        const r2 = results.find(x => x.id === r.id);
+        if (!r2) return;
+        const copyText = r2.gherkin;
+        navigator.clipboard.writeText(copyText).then(() => {
+          showToast('Gherkin copied ✓');
+        }).catch(() => {
+          // fallback
+          const ta = Object.assign(document.createElement('textarea'), { value: copyText });
+          document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+          showToast('Gherkin copied ✓');
+        });
+      });
+
+      /* ── Pin ── */
+      el.querySelector('.pin-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        const r2 = results.find(x => x.id === r.id);
+        if (!r2) return;
+        r2.pinned = !r2.pinned;
+        saveResults();
+        renderAll(); // re-sort pinned to top
+        showToast(r2.pinned ? 'Result pinned 📌' : 'Result unpinned');
+      });
+
+      /* ── Delete ── */
+      el.querySelector('.delete-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        if (!confirm('Delete this test suite?')) return;
+        results = results.filter(x => x.id !== r.id);
+        saveResults();
+        renderAll();
+        showToast('Result deleted');
+      });
+
+      /* ── Drag & Drop ── */
+      el.addEventListener('dragstart', ev => {
+        dragSrcId = r.id;
+        ev.dataTransfer.effectAllowed = 'move';
+        el.classList.add('dragging');
+        // need a small delay so the drag image is captured before we style the el
+        setTimeout(() => el.style.opacity = '0.4', 0);
+      });
+      el.addEventListener('dragend', () => {
+        dragSrcId = null;
+        el.classList.remove('dragging');
+        el.style.opacity = '';
+        document.querySelectorAll('.result-card').forEach(c => c.classList.remove('drag-over'));
+      });
+      el.addEventListener('dragover', ev => {
+        ev.preventDefault();
+        if (dragSrcId && dragSrcId !== r.id) el.classList.add('drag-over');
+      });
+      el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+      el.addEventListener('drop', ev => {
+        ev.preventDefault();
+        el.classList.remove('drag-over');
+        if (!dragSrcId || dragSrcId === r.id) return;
+        // Reorder: move dragSrc before/after drop target
+        const srcIdx  = results.findIndex(x => x.id === dragSrcId);
+        const dstIdx  = results.findIndex(x => x.id === r.id);
+        if (srcIdx === -1 || dstIdx === -1) return;
+        const [moved] = results.splice(srcIdx, 1);
+        results.splice(dstIdx, 0, moved);
+        saveResults();
+        renderAll();
+      });
+
+      return el;
+    }
+
+    /* ── HTML escape ─────────────────────────────────────────────────────── */
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    /* ── Render all results ──────────────────────────────────────────────── */
+    function renderAll() {
+      // Pinned cards first, then by insertion order (index)
+      const sorted = [...results].sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return 0;
+      });
+
+      resultsList.innerHTML = '';
+      sorted.forEach(r => resultsList.appendChild(renderCard(r)));
+
+      const hasResults = results.length > 0;
+      emptyState.style.display    = hasResults ? 'none' : '';
+      outputToolbar.classList.toggle('hidden', !hasResults);
+      clearAllBtn.classList.toggle('hidden', !hasResults);
+      outputCount.textContent     = String(results.length);
+    }
+
+    /* ── Loading state ───────────────────────────────────────────────────── */
+    function setLoading(on) {
+      generateBtn.disabled = on;
+      generateBtn.setAttribute('aria-busy', String(on));
+      btnLabel.textContent = on ? 'Generating…' : 'Generate Test Cases';
+      btnSpinner.classList.toggle('hidden', !on);
+      btnIcon.classList.toggle('hidden', on);
+    }
+
+    /* ── Clear all ───────────────────────────────────────────────────────── */
+    clearAllBtn.addEventListener('click', () => {
+      if (!confirm(`Delete all ${results.length} result(s)?`)) return;
+      results = [];
+      saveResults();
+      renderAll();
+      showToast('All results cleared');
+    });
+
+    /* ── Generate ────────────────────────────────────────────────────────── */
+    generateBtn.addEventListener('click', async () => {
+      const raw = textarea.value.trim();
+      if (!raw) {
+        inputError.textContent = 'Please enter a user story or requirement.';
+        inputError.classList.remove('hidden');
+        textarea.setAttribute('aria-invalid', 'true');
+        textarea.focus();
+        return;
+      }
+      if (raw.length < 10) {
+        inputError.textContent = 'Input is too short — provide more detail.';
+        inputError.classList.remove('hidden');
+        textarea.setAttribute('aria-invalid', 'true');
+        textarea.focus();
+        return;
+      }
+      inputError.classList.add('hidden');
+      textarea.removeAttribute('aria-invalid');
+
+      setLoading(true);
+      setStatus('loading', 'Generating…');
+
+      // Optimistic skeleton card
+      const skeletonId = 'skel-' + Date.now();
+      const skelEl = document.createElement('div');
+      skelEl.className = 'result-card open';
+      skelEl.id = skeletonId;
+      skelEl.innerHTML = `
+        <div class="card-header" style="cursor:default;">
+          <span class="skeleton" style="width:14px;height:14px;border-radius:4px;flex-shrink:0;"></span>
+          <span class="skeleton flex-1" style="height:14px;max-width:280px;"></span>
+          <span class="skeleton" style="width:70px;height:12px;"></span>
+        </div>
+        <div class="gherkin-body" style="display:block;">
+          <div class="gherkin-pre flex flex-col gap-2">
+            ${Array.from({length:8},(_,i)=>`<span class="skeleton" style="height:12px;width:${[70,55,85,65,80,60,75,45][i]}%;"></span>`).join('')}
+          </div>
+        </div>`;
+      resultsList.insertBefore(skelEl, resultsList.firstChild);
+      emptyState.style.display = 'none';
+      outputToolbar.classList.remove('hidden');
+      clearAllBtn.classList.remove('hidden');
+
+      try {
+        const res = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input_text: raw }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.detail ?? `HTTP ${res.status}`);
+
+        // Build result record
+        const record = {
+          id: 'r-' + Date.now() + '-' + Math.random().toString(36).slice(2,6),
+          title: deriveTitle(raw),
+          gherkin: data.gherkin,
+          ts: Date.now(),
+          pinned: false,
+          open: true,
+        };
+
+        results.unshift(record);
+        saveResults();
+
+        // Replace skeleton
+        skelEl.remove();
+        renderAll();
+
+        setStatus('success', 'Done');
+        showToast('Test cases generated ✓');
+
+      } catch (err) {
+        skelEl.remove();
+        renderAll();
+        const msg = err.message.includes('fetch') ? 'Cannot reach server — is the backend running?' : err.message;
+        setStatus('error', 'Error');
+        showToast(`Error: ${msg}`, 'error');
+
+        // Show error card (non-persistent)
+        const errCard = document.createElement('div');
+        errCard.className = 'result-card open';
+        errCard.style.borderColor = 'var(--negative)';
+        errCard.innerHTML = `
+          <div class="card-header" style="cursor:default;background:rgba(240,96,92,0.06);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--negative)"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span class="flex-1 text-sm font-medium" style="color:var(--negative);">Generation failed</span>
+            <button class="btn-ghost" style="color:var(--negative);border:none;min-height:auto;padding:2px 6px;font-size:0.7rem;"
+                    onclick="this.closest('.result-card').remove(); if(!document.querySelector('.result-card')) { document.getElementById('empty-state').style.display=''; document.getElementById('output-toolbar').classList.add('hidden'); document.getElementById('clear-all-btn').classList.add('hidden'); }"
+                    aria-label="Dismiss error">✕ Dismiss</button>
+          </div>
+          <div class="gherkin-body" style="display:block;padding:12px 18px;font-size:0.8rem;color:var(--negative);">${escHtml(msg)}</div>`;
+        resultsList.insertBefore(errCard, resultsList.firstChild);
+        emptyState.style.display = 'none';
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    /* ── Boot ────────────────────────────────────────────────────────────── */
+    loadResults();
+    renderAll();
+
+  })();
+  </script>
+</body>
+</html>
