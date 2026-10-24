@@ -2,6 +2,8 @@
 
 **AutoSpec QA** is an intelligent, automated BDD test case generator that transforms raw user stories, PRD excerpts, or casual problem statements into structured Gherkin test suites using the Google Gemini API.
 
+Live demo: deployed on [PythonAnywhere](https://www.pythonanywhere.com/)
+
 ---
 
 ## ✨ Features
@@ -27,193 +29,319 @@
 
 ```
 autospec-qa/
-├── main.py            # FastAPI backend + Gemini integration
-├── index.html         # Single-page frontend (served by FastAPI)
-├── static/            # Optional static assets (CSS overrides, images)
+├── main.py            # FastAPI app — routes, Gemini API client, prompt engine
+├── wsgi.py            # WSGI entry point for PythonAnywhere (wraps FastAPI via a2wsgi)
+├── index.html         # Single-page frontend (served by FastAPI at GET /)
+├── static/            # Optional static assets
 ├── requirements.txt   # Pinned Python dependencies
-├── render.yaml        # Render deployment blueprint
-├── runtime.txt        # Python version pin for Render
 ├── .env.example       # Environment variable template (no real secrets)
-├── .gitignore         # Ignored files (venv, .env, __pycache__)
+├── .gitignore         # Ignored files (.venv, .env, __pycache__)
 └── README.md          # This file
 ```
 
 ---
 
-## 🚀 Setup & Installation
+## 🚀 Local Development Setup
 
-Follow the instructions for your operating system.
+### Prerequisites
 
----
+- Python 3.11 or later
+- A Gemini API key from [Google AI Studio](https://aistudio.google.com/)
 
-### 🪟 Windows
-
-#### Prerequisites
-
-1. **Python 3.11 or later** — Download from [python.org](https://www.python.org/downloads/).  
-   During installation check **"Add Python to PATH"**.
-
-2. Verify Python is available:
-   ```powershell
-   python --version
-   # Expected output: Python 3.11.x  (or newer)
-   ```
-
-3. Verify pip is available:
-   ```powershell
-   pip --version
-   ```
-
-#### Step 1 — Navigate to the project folder
+### Windows
 
 ```powershell
-cd "C:\path\to\autospec-qa"
-```
+cd autospec-qa
 
-#### Step 2 — Create a virtual environment
-
-```powershell
+# Create and activate virtual environment
 python -m venv .venv
-```
-
-#### Step 3 — Activate the virtual environment
-
-```powershell
 .venv\Scripts\activate
-```
 
-You will see `(.venv)` prepended to your prompt.
-
-#### Step 4 — Install dependencies
-
-```powershell
+# Install dependencies
 pip install -r requirements.txt
-```
 
-#### Step 5 — Configure the API key
-
-```powershell
+# Set up environment
 Copy-Item .env.example .env
-```
+# Open .env and set: GEMINI_API_KEY=your_key_here
 
-Open `.env` in Notepad (or any editor) and replace the placeholder with your real key:
-
-```
-GEMINI_API_KEY=your_real_key_here
-```
-
-> **Where to get a key:** Visit [Google AI Studio](https://aistudio.google.com/), click **Get API Key**, and create a new key.
-
-#### Step 6 — Start the server
-
-```powershell
+# Run
 uvicorn main:app --reload
+# Open http://127.0.0.1:8000
 ```
 
-#### Step 7 — Open the app
+### macOS / Linux
 
-Open your browser and go to:
+```bash
+cd autospec-qa
 
-```
-http://127.0.0.1:8000
-```
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
 
-#### Stopping the server
+# Install dependencies
+pip install -r requirements.txt
 
-Press `Ctrl + C` in the terminal.
+# Set up environment
+cp .env.example .env
+# Open .env and set: GEMINI_API_KEY=your_key_here
 
-#### Deactivating the virtual environment
-
-```powershell
-deactivate
+# Run
+uvicorn main:app --reload
+# Open http://127.0.0.1:8000
 ```
 
 ---
 
-### 🍎 macOS
+## ☁️ Deploying to PythonAnywhere
 
-#### Prerequisites
+PythonAnywhere hosts Python web apps via WSGI. FastAPI is an ASGI framework, so the project includes [`wsgi.py`](wsgi.py) which wraps the FastAPI app using `a2wsgi` so PythonAnywhere can serve it.
 
-1. **Python 3.11 or later** — The recommended way is via [Homebrew](https://brew.sh/):
-   ```bash
-   brew install python@3.11
-   ```
-   Or download the macOS installer from [python.org](https://www.python.org/downloads/).
+**Your app will be available at:** `https://<your-username>.pythonanywhere.com`
 
-2. Verify Python is available:
-   ```bash
-   python3 --version
-   # Expected output: Python 3.11.x  (or newer)
-   ```
+---
 
-3. Verify pip is available:
-   ```bash
-   pip3 --version
-   ```
+### Step 1 — Create a PythonAnywhere account
 
-#### Step 1 — Navigate to the project folder
+Go to [pythonanywhere.com](https://www.pythonanywhere.com/) and sign up for a free account.
+Free accounts get one web app at `https://<username>.pythonanywhere.com`.
+
+---
+
+### Step 2 — Upload project files
+
+You need to get all project files onto PythonAnywhere. There are two ways:
+
+#### Option A — Upload via the Files tab (easiest)
+
+1. Log in → click the **Files** tab.
+2. Navigate to (or create) the folder `/home/<username>/autospec-qa/`.
+3. Upload each file one at a time using the **Upload a file** button:
+   - `main.py`
+   - `wsgi.py`
+   - `index.html`
+   - `requirements.txt`
+   - `.env.example`
+
+#### Option B — Clone from GitHub via Bash Console
+
+1. Go to the **Consoles** tab → **Bash**.
+2. Run:
 
 ```bash
-cd /path/to/autospec-qa
+git clone https://github.com/Rafi-1405/Hacktiv8_IBMBOB.git autospec-qa
 ```
 
-#### Step 2 — Create a virtual environment
+This downloads all files directly into `/home/<username>/autospec-qa/`.
+
+---
+
+### Step 3 — Open a Bash Console
+
+1. Click the **Consoles** tab.
+2. Click **Bash** to open a terminal.
+3. Navigate to your project:
 
 ```bash
-python3 -m venv .venv
+cd ~/autospec-qa
 ```
 
-#### Step 3 — Activate the virtual environment
+---
+
+### Step 4 — Create a virtual environment
+
+PythonAnywhere free accounts support Python 3.10. Create a virtualenv named `venv` in your home directory:
 
 ```bash
-source .venv/bin/activate
+mkvirtualenv --python=/usr/bin/python3.10 autospec-qa-venv
 ```
 
-You will see `(.venv)` prepended to your prompt.
+This creates the virtualenv at:
+```
+/home/<username>/.virtualenvs/autospec-qa-venv/
+```
 
-#### Step 4 — Install dependencies
+If `mkvirtualenv` is not available, use:
 
 ```bash
+python3.10 -m venv /home/<username>/.virtualenvs/autospec-qa-venv
+```
+
+---
+
+### Step 5 — Install dependencies
+
+With the virtualenv active (it should activate automatically after `mkvirtualenv`), run:
+
+```bash
+workon autospec-qa-venv    # activate if not already active
+
+cd ~/autospec-qa
 pip install -r requirements.txt
 ```
 
-#### Step 5 — Configure the API key
+Verify the install:
 
 ```bash
-cp .env.example .env
+pip show fastapi a2wsgi google-genai
 ```
 
-Open `.env` in any text editor and replace the placeholder with your real key:
+You should see version numbers for all three packages.
+
+---
+
+### Step 6 — Configure the Web App
+
+1. Click the **Web** tab in the PythonAnywhere dashboard.
+2. Click **Add a new web app**.
+3. When asked to choose a framework, select **Manual configuration**.
+4. Select **Python 3.10**.
+5. Click **Next** until the web app is created.
+
+---
+
+### Step 7 — Set the WSGI configuration file
+
+Still in the **Web** tab:
+
+1. Find the **WSGI configuration file** section.
+   It shows a path like `/var/www/<username>_pythonanywhere_com_wsgi.py`.
+2. Click on that path to open the file editor.
+3. **Delete all existing content** and replace it with:
+
+```python
+import sys
+import os
+
+# ── Add your project directory to the path ──────────────────────────────────
+path = '/home/<username>/autospec-qa'   # <-- replace <username> with yours
+if path not in sys.path:
+    sys.path.insert(0, path)
+
+# ── Set environment variables ────────────────────────────────────────────────
+# Alternatively, set these in the Web tab → Environment variables section below.
+os.environ.setdefault('GEMINI_API_KEY', 'your_gemini_api_key_here')
+
+# ── Import the WSGI application ──────────────────────────────────────────────
+from wsgi import application  # noqa
+```
+
+> **Important:** Replace `<username>` with your actual PythonAnywhere username on the `path` line.
+> **Security:** Do not hard-code the real API key here — use the Environment Variables section in Step 8 instead, then remove the `os.environ.setdefault` line.
+
+4. Click **Save**.
+
+---
+
+### Step 8 — Set the environment variable
+
+Still in the **Web** tab, scroll down to the **Environment variables** section:
+
+1. Click **Add a new variable**.
+2. Set:
+   - **Name:** `GEMINI_API_KEY`
+   - **Value:** your real Gemini API key (starts with `AIza...`)
+3. Click the checkmark to save.
+
+Now go back to the WSGI file and remove the `os.environ.setdefault` line you added in Step 7 — the variable is now set securely by PythonAnywhere.
+
+---
+
+### Step 9 — Set the virtualenv path
+
+In the **Web** tab, find the **Virtualenv** section:
+
+1. Enter the full path to your virtualenv:
+   ```
+   /home/<username>/.virtualenvs/autospec-qa-venv
+   ```
+   Replace `<username>` with your PythonAnywhere username.
+2. Click the checkmark to save.
+
+---
+
+### Step 10 — Reload the web app
+
+At the top of the **Web** tab, click the big green **Reload** button.
+
+Wait a few seconds, then open your app in a browser:
 
 ```
-GEMINI_API_KEY=AIzaSy...your_real_key_here
+https://<username>.pythonanywhere.com
 ```
 
-> **Where to get a key:** Visit [Google AI Studio](https://aistudio.google.com/), click **Get API Key**, and create a new key.
+If the app loads correctly, deployment is complete. ✅
 
-#### Step 6 — Start the server
+---
+
+### Step 11 — Check logs if something goes wrong
+
+In the **Web** tab, scroll down to the **Log files** section. There are three logs:
+
+| Log | What it shows |
+|---|---|
+| **Error log** | Python tracebacks and import errors — check this first |
+| **Server log** | Raw WSGI server output |
+| **Access log** | Every HTTP request/response |
+
+Click any log path to open the live tail view.
+
+**Common errors:**
+
+| Error in log | Fix |
+|---|---|
+| `ModuleNotFoundError: No module named 'fastapi'` | virtualenv path is wrong, or `pip install -r requirements.txt` was not run |
+| `ModuleNotFoundError: No module named 'a2wsgi'` | Run `pip install a2wsgi==1.10.10` inside the virtualenv |
+| `ModuleNotFoundError: No module named 'main'` | `path` in the WSGI file does not point to the correct project directory |
+| `GEMINI_API_KEY is not set` | Environment variable not saved in the Web tab |
+| `404 NOT_FOUND` model error | Edit `model=` in `main.py` to match the model available to your key |
+| App loads but shows blank page | Check the browser console; the `index.html` path may be wrong |
+
+---
+
+### WSGI configuration reference
+
+| Setting | Value |
+|---|---|
+| **WSGI file** | `/var/www/<username>_pythonanywhere_com_wsgi.py` |
+| **Callable** | `application` (imported from `wsgi.py`) |
+| **Project directory** | `/home/<username>/autospec-qa` |
+| **Virtualenv path** | `/home/<username>/.virtualenvs/autospec-qa-venv` |
+| **Python version** | `3.10` (PythonAnywhere free tier) |
+
+---
+
+### How the WSGI bridge works
+
+```
+Browser
+  └─► PythonAnywhere WSGI server
+        └─► /var/www/..._wsgi.py   (sets sys.path, imports application)
+              └─► wsgi.py           (a2wsgi.ASGIMiddleware wraps FastAPI)
+                    └─► main.py     (FastAPI app — routes, Gemini client)
+                          └─► index.html  (served at GET /)
+```
+
+FastAPI is an ASGI framework. PythonAnywhere speaks WSGI. `a2wsgi.ASGIMiddleware` sits between them, translating WSGI `environ` / `start_response` calls into ASGI scope/receive/send calls.
+
+---
+
+### Updating the app on PythonAnywhere
+
+After making local changes:
+
+**Via GitHub (if using Option B):**
 
 ```bash
-uvicorn main:app --reload
+# In PythonAnywhere Bash console
+cd ~/autospec-qa
+git pull origin main
 ```
 
-#### Step 7 — Open the app
+Then click **Reload** in the Web tab.
 
-Open your browser and go to:
+**Via manual file upload:**
 
-```
-http://127.0.0.1:8000
-```
-
-#### Stopping the server
-
-Press `Ctrl + C` in the terminal.
-
-#### Deactivating the virtual environment
-
-```bash
-deactivate
-```
+Re-upload the changed files through the Files tab, then click **Reload** in the Web tab.
 
 ---
 
@@ -221,122 +349,40 @@ deactivate
 
 ### `POST /generate`
 
-Generates a structured Gherkin test suite from the supplied requirement text.
+Generates a structured Gherkin test suite.
 
-**Request body** (`application/json`):
-
+**Request body:**
 ```json
-{
-  "input_text": "As a user, I want to reset my password via email..."
-}
+{ "input_text": "As a user, I want to reset my password via email..." }
 ```
 
-**Validation rules:**
-- `input_text` must be between 10 and 8 000 characters (whitespace stripped).
-
-**Success response** (`200 OK`):
-
+**Success response (`200 OK`):**
 ```json
-{
-  "gherkin": "Feature: Password Reset via Email\n...",
-  "token_count": 512
-}
+{ "gherkin": "Feature: Password Reset via Email\n...", "token_count": 512 }
 ```
 
-**Error responses:**
+**Error codes:**
 
 | Status | Meaning |
 |---|---|
-| `422 Unprocessable Entity` | Input validation failure or AI safety filter rejection |
-| `502 Bad Gateway` | Gemini API returned an unexpected error (after 3 retries) |
-| `503 Service Unavailable` | `GEMINI_API_KEY` is not configured on the server |
+| `422` | Input validation failure or AI safety filter rejection |
+| `502` | Gemini API error after 3 retries |
+| `503` | `GEMINI_API_KEY` not configured |
 
 ### `GET /health`
 
-Liveness probe — returns `{"status": "ok", "api_key_configured": true/false}`.
-
----
-
-## 🎨 Gherkin Output Format
-
-```gherkin
-Feature: <descriptive name>
-# <one-line feature summary>
-
-## POSITIVE FUNCTIONAL & FLOW
-
-Scenario: <happy-path scenario>
-  Given ...
-  When  ...
-  Then  ...
-
-## NEGATIVE & INPUT VALIDATION
-
-Scenario: <validation failure scenario>
-  ...
-
-## EDGE CASES, ACCESSIBILITY & UI STATE
-
-Scenario: Keyboard navigation through the form
-  Given a user is navigating with a keyboard only
-  When they press Tab to move through form fields
-  Then each field receives a visible focus indicator
-  And the focus order follows a logical reading sequence
-```
-
----
-
-## 🖥️ UI Features Guide
-
-### Collapseable cards
-Every time you generate test cases, a new card is added to the right panel with a one-sentence title derived from your input. Click the card header (or press Enter/Space when focused) to expand or collapse the Gherkin output.
-
-### Pinning
-Click the **Pin** button inside an expanded card to pin it to the top of the list. Pinned cards are highlighted with a gold border and a filled pin icon. Click **Pinned** again to unpin.
-
-### Deleting
-Click the **Delete** button inside a card. A confirmation dialog will appear before the card is removed.
-
-### Reordering
-Drag any card by the ⠿ grip icon on the left of its header to reorder it in the list.
-
-### Clear all
-Use the **Clear all** button in the top header bar to delete every result at once.
-
-### localStorage persistence
-All results (including their expanded/collapsed state and pin status) are automatically saved to `localStorage` under the key `autospec-qa-results-v2`. They survive page refreshes and browser restarts until you clear browser data or click **Clear all**.
+Returns `{"status": "ok", "api_key_configured": true/false}`.
 
 ---
 
 ## ⚙️ Configuration
 
-| Environment variable | Default | Description |
+| Variable | Required | Where to set |
 |---|---|---|
-| `GEMINI_API_KEY` | *(required)* | Google Generative AI API key |
+| `GEMINI_API_KEY` | ✅ Yes | PythonAnywhere Web tab → Environment Variables (production); `.env` file (local dev) |
 
-The Gemini model used is **`gemini-3.8-flash`** with temperature `0.3` for deterministic, structured output.  
-To switch models, edit the `model` argument in [`main.py`](main.py) inside the `generate_test_cases` function.
-
----
-
-## 🔒 Security Notes
-
-- All user input is validated server-side (length limits, null-byte removal) before being sent to the API.
-- The Gemini API key is never exposed to the browser.
-- CORS is currently set to `allow_origins=["*"]` for local development. **Restrict this to your domain in production.**
-
----
-
-## 🐛 Troubleshooting
-
-| Problem | Solution |
-|---|---|
-| `uvicorn: command not found` | Ensure the virtual environment is activated and `pip install -r requirements.txt` has been run |
-| `GEMINI_API_KEY is not set` warning | Check that `.env` exists (not just `.env.example`) and contains a valid key |
-| `503 UNAVAILABLE` from Gemini | The free-tier key is rate-limited; the server will retry 3× automatically. Wait a moment and try again |
-| `404 NOT_FOUND` model error | The model name is outdated — update `model=` in `main.py` to the model available to your key |
-| Port 8000 already in use | Run on a different port: `uvicorn main:app --reload --port 8001` and open `http://127.0.0.1:8001` |
-| `python-dotenv could not parse` | Ensure `.env` uses `#` for comments, not `//` |
+The Gemini model used is **`gemini-3.8-flash`** (temperature `0.3`).
+To switch models, edit the `model=` argument in [`main.py`](main.py).
 
 ---
 
@@ -348,93 +394,36 @@ uvicorn[standard]==0.54.0
 google-genai==2.33.0
 python-dotenv==1.2.4
 pydantic==2.14.1
+a2wsgi==1.10.10
 ```
 
 ---
 
-## ☁️ Deploying to Render
+## 🔒 Security Notes
 
-Render is a cloud platform that can host the FastAPI app for free. The project ships with a `render.yaml` blueprint that automates the configuration.
-
-### Prerequisites
-
-- A [Render account](https://dashboard.render.com/) (free tier is sufficient)
-- The code pushed to a GitHub repository (already done — `https://github.com/Rafi-1405/Hacktiv8_IBMBOB.git`)
-- Your **Gemini API key** ready to paste
-
----
-
-### Method A — Blueprint (recommended, one-click)
-
-1. Log in to [dashboard.render.com](https://dashboard.render.com/).
-2. Click **New → Blueprint**.
-3. Connect your GitHub account if prompted, then select the repository **`Rafi-1405/Hacktiv8_IBMBOB`**.
-4. Render will detect `render.yaml` automatically and show a service called `autospec-qa`.
-5. Under **Environment Variables**, find `GEMINI_API_KEY` and paste your real API key into the **Value** field.
-6. Click **Apply** — Render will install dependencies and start the service.
-7. Once the deploy log shows `Application startup complete`, click the generated URL (e.g. `https://autospec-qa.onrender.com`) to open the app.
+- The Gemini API key is **never** exposed to the browser.
+- Set `GEMINI_API_KEY` only in the PythonAnywhere Web tab → Environment Variables. Never commit it to git.
+- CORS is set to `allow_origins=["*"]` for development. Restrict it to your PythonAnywhere domain in `main.py` for production:
+  ```python
+  allow_origins=["https://<username>.pythonanywhere.com"]
+  ```
 
 ---
 
-### Method B — Manual web service
+## 🖥️ UI Features
 
-If you prefer to configure everything through the UI without using the blueprint:
+| Action | How |
+|---|---|
+| Generate | Paste requirement → click **Generate Test Cases** (or `Ctrl+Enter`) |
+| Collapse / Expand | Click any card header |
+| Copy Gherkin | Click **Copy** inside an expanded card |
+| Pin to top | Click **Pin** — card gets a gold border and moves to the top |
+| Delete | Click **Delete** → confirm dialog |
+| Reorder | Drag the ⠿ grip icon on the card header |
+| Clear all | Click **Clear all** in the top header bar |
+| Dark / light mode | Click the moon/sun icon in the header |
 
-1. Log in to [dashboard.render.com](https://dashboard.render.com/).
-2. Click **New → Web Service**.
-3. Connect to GitHub and select **`Rafi-1405/Hacktiv8_IBMBOB`**.
-4. Fill in the fields:
-
-   | Field | Value |
-   |---|---|
-   | **Name** | `autospec-qa` |
-   | **Region** | Singapore (or closest to your users) |
-   | **Branch** | `main` |
-   | **Root Directory** | *(leave blank — `render.yaml` is at repo root)* |
-   | **Runtime** | `Python 3` |
-   | **Build Command** | `pip install -r requirements.txt` |
-   | **Start Command** | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
-   | **Instance Type** | `Free` |
-
-5. Scroll down to **Environment Variables** and add:
-
-   | Key | Value |
-   |---|---|
-   | `GEMINI_API_KEY` | `AIzaSy...your_real_key_here` |
-
-6. Click **Create Web Service**.
-
----
-
-### Pushing updates to production
-
-After changing any code locally, push to GitHub — Render auto-deploys on every push to `main`:
-
-```bash
-# From inside the autospec-qa/ folder
-git add .
-git commit -m "fix: describe your change here"
-git push origin main
-```
-
-Render will pick up the new commit within seconds and redeploy automatically.
-
----
-
-### Render environment variable reference
-
-| Variable | Required | Description |
-|---|---|---|
-| `GEMINI_API_KEY` | ✅ Yes | Your Google Generative AI API key — set this in the Render dashboard, never commit it to git |
-
----
-
-### Render deployment notes
-
-- **Free tier spin-down:** Render's free tier spins down the service after 15 minutes of inactivity. The first request after a cold start takes ~30 seconds. Upgrade to the Starter plan ($7/mo) to avoid this.
-- **Health check:** Render polls `GET /health` to verify the app is live before routing traffic.
-- **Logs:** View real-time logs in the Render dashboard under your service → **Logs** tab.
-- **Custom domain:** Add a custom domain under your service → **Settings → Custom Domains**.
+All results persist in browser `localStorage` (key: `autospec-qa-results-v2`).
 
 ---
 
