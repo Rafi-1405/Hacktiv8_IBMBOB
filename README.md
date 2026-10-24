@@ -30,8 +30,11 @@ autospec-qa/
 ├── main.py            # FastAPI backend + Gemini integration
 ├── index.html         # Single-page frontend (served by FastAPI)
 ├── static/            # Optional static assets (CSS overrides, images)
-├── requirements.txt   # Python dependencies
-├── .env.example       # Environment variable template
+├── requirements.txt   # Pinned Python dependencies
+├── render.yaml        # Render deployment blueprint
+├── runtime.txt        # Python version pin for Render
+├── .env.example       # Environment variable template (no real secrets)
+├── .gitignore         # Ignored files (venv, .env, __pycache__)
 └── README.md          # This file
 ```
 
@@ -340,12 +343,98 @@ To switch models, edit the `model` argument in [`main.py`](main.py) inside the `
 ## 📋 Dependencies
 
 ```
-fastapi>=0.111.0
-uvicorn[standard]>=0.29.0
-google-genai>=2.0.0
-python-dotenv>=1.0.0
-pydantic>=2.0.0
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+google-genai==2.33.0
+python-dotenv==1.2.4
+pydantic==2.14.1
 ```
+
+---
+
+## ☁️ Deploying to Render
+
+Render is a cloud platform that can host the FastAPI app for free. The project ships with a `render.yaml` blueprint that automates the configuration.
+
+### Prerequisites
+
+- A [Render account](https://dashboard.render.com/) (free tier is sufficient)
+- The code pushed to a GitHub repository (already done — `https://github.com/Rafi-1405/Hacktiv8_IBMBOB.git`)
+- Your **Gemini API key** ready to paste
+
+---
+
+### Method A — Blueprint (recommended, one-click)
+
+1. Log in to [dashboard.render.com](https://dashboard.render.com/).
+2. Click **New → Blueprint**.
+3. Connect your GitHub account if prompted, then select the repository **`Rafi-1405/Hacktiv8_IBMBOB`**.
+4. Render will detect `render.yaml` automatically and show a service called `autospec-qa`.
+5. Under **Environment Variables**, find `GEMINI_API_KEY` and paste your real API key into the **Value** field.
+6. Click **Apply** — Render will install dependencies and start the service.
+7. Once the deploy log shows `Application startup complete`, click the generated URL (e.g. `https://autospec-qa.onrender.com`) to open the app.
+
+---
+
+### Method B — Manual web service
+
+If you prefer to configure everything through the UI without using the blueprint:
+
+1. Log in to [dashboard.render.com](https://dashboard.render.com/).
+2. Click **New → Web Service**.
+3. Connect to GitHub and select **`Rafi-1405/Hacktiv8_IBMBOB`**.
+4. Fill in the fields:
+
+   | Field | Value |
+   |---|---|
+   | **Name** | `autospec-qa` |
+   | **Region** | Singapore (or closest to your users) |
+   | **Branch** | `main` |
+   | **Root Directory** | *(leave blank — `render.yaml` is at repo root)* |
+   | **Runtime** | `Python 3` |
+   | **Build Command** | `pip install -r requirements.txt` |
+   | **Start Command** | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+   | **Instance Type** | `Free` |
+
+5. Scroll down to **Environment Variables** and add:
+
+   | Key | Value |
+   |---|---|
+   | `GEMINI_API_KEY` | `AIzaSy...your_real_key_here` |
+
+6. Click **Create Web Service**.
+
+---
+
+### Pushing updates to production
+
+After changing any code locally, push to GitHub — Render auto-deploys on every push to `main`:
+
+```bash
+# From inside the autospec-qa/ folder
+git add .
+git commit -m "fix: describe your change here"
+git push origin main
+```
+
+Render will pick up the new commit within seconds and redeploy automatically.
+
+---
+
+### Render environment variable reference
+
+| Variable | Required | Description |
+|---|---|---|
+| `GEMINI_API_KEY` | ✅ Yes | Your Google Generative AI API key — set this in the Render dashboard, never commit it to git |
+
+---
+
+### Render deployment notes
+
+- **Free tier spin-down:** Render's free tier spins down the service after 15 minutes of inactivity. The first request after a cold start takes ~30 seconds. Upgrade to the Starter plan ($7/mo) to avoid this.
+- **Health check:** Render polls `GET /health` to verify the app is live before routing traffic.
+- **Logs:** View real-time logs in the Render dashboard under your service → **Logs** tab.
+- **Custom domain:** Add a custom domain under your service → **Settings → Custom Domains**.
 
 ---
 
