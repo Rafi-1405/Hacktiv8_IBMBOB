@@ -2,7 +2,7 @@
 
 **AutoSpec QA** is an intelligent, automated BDD test case generator that transforms raw user stories, PRD excerpts, or casual problem statements into structured Gherkin test suites using the Google Gemini API.
 
-Live demo: deployed on [PythonAnywhere](https://www.pythonanywhere.com/)
+The app is designed to deploy to PythonAnywhere using the included WSGI adapter.
 
 ---
 
@@ -18,6 +18,10 @@ Live demo: deployed on [PythonAnywhere](https://www.pythonanywhere.com/)
 | localStorage persistence | All generated results survive page refreshes automatically |
 | Syntax highlighting | Per-keyword colour coding (Given/When/Then/And/But) |
 | One-click copy | Clipboard API with execCommand fallback per card |
+| Suite management | Search, expand/collapse, rename, and edit saved results |
+| Validation and exports | Gherkin structure checks plus `.feature`, CSV, and Markdown downloads |
+| Backup and recovery | Import/export JSON backups and undo deletions |
+| Draft recovery | Input drafts are saved in browser localStorage |
 | Dark / light mode | Respects OS preference; persisted to localStorage |
 | WCAG 2.1 AA UI | Skip link, aria labels, keyboard navigation, 44 × 44 px touch targets |
 | Keyboard shortcut | `Ctrl/Cmd + Enter` triggers generation from the textarea |
@@ -107,99 +111,41 @@ Free accounts get one web app at `https://<username>.pythonanywhere.com`.
 
 ---
 
-### Step 2 — Upload project files
+### Step 2 — Clone the GitHub repository
 
-You need to get all project files onto PythonAnywhere. There are two ways:
-
-#### Option A — Upload via the Files tab (easiest)
-
-1. Log in → click the **Files** tab.
-2. Navigate to (or create) the folder `/home/<username>/autospec-qa/`.
-3. Upload each file one at a time using the **Upload a file** button:
-   - `main.py`
-   - `wsgi.py`
-   - `index.html`
-   - `requirements.txt`
-   - `.env.example`
-
-#### Option B — Clone from GitHub via Bash Console
-
-1. Go to the **Consoles** tab → **Bash**.
-2. Run:
+Open the **Consoles** tab, start a **Bash** console, and run these commands. Replace the URL with your GitHub repository URL:
 
 ```bash
-git clone https://github.com/Rafi-1405/Hacktiv8_IBMBOB.git autospec-qa
-```
-
-This downloads all files directly into `/home/<username>/autospec-qa/`.
-
----
-
-### Step 3 — Open a Bash Console
-
-1. Click the **Consoles** tab.
-2. Click **Bash** to open a terminal.
-3. Navigate to your project:
-
-```bash
+cd ~
+git clone https://github.com/<your-username>/<your-repository>.git autospec-qa
 cd ~/autospec-qa
 ```
 
----
-
-### Step 4 — Create a virtual environment
-
-PythonAnywhere free accounts support Python 3.10. Create a virtualenv named `venv` in your home directory:
-
-```bash
-mkvirtualenv --python=/usr/bin/python3.10 autospec-qa-venv
-```
-
-This creates the virtualenv at:
-```
-/home/<username>/.virtualenvs/autospec-qa-venv/
-```
-
-If `mkvirtualenv` is not available, use:
-
-```bash
-python3.10 -m venv /home/<username>/.virtualenvs/autospec-qa-venv
-```
+For a private repository, configure GitHub authentication on PythonAnywhere before cloning. A public repository is simplest for a first deployment.
 
 ---
 
-### Step 5 — Install dependencies
+### Step 3 — Create a virtual environment and install dependencies
 
-With the virtualenv active (it should activate automatically after `mkvirtualenv`), run:
+Choose a Python version available both in your PythonAnywhere account and in the Web app setup. Replace `python3.X` below with that version (for example, `python3.10` if available):
 
 ```bash
-workon autospec-qa-venv    # activate if not already active
-
-cd ~/autospec-qa
+python3.X -m venv ~/.virtualenvs/autospec-qa
+source ~/.virtualenvs/autospec-qa/bin/activate
 pip install -r requirements.txt
 ```
 
-Verify the install:
-
-```bash
-pip show fastapi a2wsgi google-genai
-```
-
-You should see version numbers for all three packages.
-
----
-
-### Step 6 — Configure the Web App
+### Step 4 — Configure the Web App
 
 1. Click the **Web** tab in the PythonAnywhere dashboard.
 2. Click **Add a new web app**.
 3. When asked to choose a framework, select **Manual configuration**.
-4. Select **Python 3.10**.
+4. Select the same Python version used to create the virtual environment.
 5. Click **Next** until the web app is created.
 
 ---
 
-### Step 7 — Set the WSGI configuration file
+### Step 5 — Set the WSGI configuration file
 
 Still in the **Web** tab:
 
@@ -210,29 +156,20 @@ Still in the **Web** tab:
 
 ```python
 import sys
-import os
+project_dir = '/home/<username>/autospec-qa'
+if project_dir not in sys.path:
+   sys.path.insert(0, project_dir)
 
-# ── Add your project directory to the path ──────────────────────────────────
-path = '/home/<username>/autospec-qa'   # <-- replace <username> with yours
-if path not in sys.path:
-    sys.path.insert(0, path)
-
-# ── Set environment variables ────────────────────────────────────────────────
-# Alternatively, set these in the Web tab → Environment variables section below.
-os.environ.setdefault('GEMINI_API_KEY', 'your_gemini_api_key_here')
-
-# ── Import the WSGI application ──────────────────────────────────────────────
-from wsgi import application  # noqa
+from wsgi import application
 ```
 
-> **Important:** Replace `<username>` with your actual PythonAnywhere username on the `path` line.
-> **Security:** Do not hard-code the real API key here — use the Environment Variables section in Step 8 instead, then remove the `os.environ.setdefault` line.
+Replace `<username>` with your PythonAnywhere username. Do not put the API key in this file.
 
 4. Click **Save**.
 
 ---
 
-### Step 8 — Set the environment variable
+### Step 6 — Set the environment variable
 
 Still in the **Web** tab, scroll down to the **Environment variables** section:
 
@@ -242,24 +179,20 @@ Still in the **Web** tab, scroll down to the **Environment variables** section:
    - **Value:** your real Gemini API key (starts with `AIza...`)
 3. Click the checkmark to save.
 
-Now go back to the WSGI file and remove the `os.environ.setdefault` line you added in Step 7 — the variable is now set securely by PythonAnywhere.
-
----
-
-### Step 9 — Set the virtualenv path
+### Step 7 — Set the virtualenv path
 
 In the **Web** tab, find the **Virtualenv** section:
 
 1. Enter the full path to your virtualenv:
    ```
-   /home/<username>/.virtualenvs/autospec-qa-venv
+   /home/<username>/.virtualenvs/autospec-qa
    ```
    Replace `<username>` with your PythonAnywhere username.
 2. Click the checkmark to save.
 
 ---
 
-### Step 10 — Reload the web app
+### Step 8 — Reload and check the app
 
 At the top of the **Web** tab, click the big green **Reload** button.
 
@@ -269,11 +202,11 @@ Wait a few seconds, then open your app in a browser:
 https://<username>.pythonanywhere.com
 ```
 
-If the app loads correctly, deployment is complete. ✅
+The `/health` endpoint should return `{"status":"ok","api_key_configured":true}`. The app serves its own frontend and `/static` CSS, so a separate static-file mapping is not needed.
 
 ---
 
-### Step 11 — Check logs if something goes wrong
+### Troubleshooting
 
 In the **Web** tab, scroll down to the **Log files** section. There are three logs:
 
@@ -305,8 +238,8 @@ Click any log path to open the live tail view.
 | **WSGI file** | `/var/www/<username>_pythonanywhere_com_wsgi.py` |
 | **Callable** | `application` (imported from `wsgi.py`) |
 | **Project directory** | `/home/<username>/autospec-qa` |
-| **Virtualenv path** | `/home/<username>/.virtualenvs/autospec-qa-venv` |
-| **Python version** | `3.10` (PythonAnywhere free tier) |
+| **Virtualenv path** | `/home/<username>/.virtualenvs/autospec-qa` |
+| **Python version** | The same version selected for the virtualenv and Web app |
 
 ---
 
@@ -329,7 +262,7 @@ FastAPI is an ASGI framework. PythonAnywhere speaks WSGI. `a2wsgi.ASGIMiddleware
 
 After making local changes:
 
-**Via GitHub (if using Option B):**
+**Via GitHub:**
 
 ```bash
 # In PythonAnywhere Bash console
@@ -339,9 +272,7 @@ git pull origin main
 
 Then click **Reload** in the Web tab.
 
-**Via manual file upload:**
-
-Re-upload the changed files through the Files tab, then click **Reload** in the Web tab.
+Then click **Reload** in the Web tab.
 
 ---
 
@@ -415,10 +346,14 @@ a2wsgi==1.10.10
 | Action | How |
 |---|---|
 | Generate | Paste requirement → click **Generate Test Cases** (or `Ctrl+Enter`) |
-| Collapse / Expand | Click any card header |
+| Search | Use the search field in the results toolbar (or press `/`) |
+| Expand / Collapse all | Use the results toolbar buttons |
 | Copy Gherkin | Click **Copy** inside an expanded card |
 | Pin to top | Click **Pin** — card gets a gold border and moves to the top |
-| Delete | Click **Delete** → confirm dialog |
+| Edit / rename | Use **Edit** or double-click the suite title |
+| Export | Download a suite as `.feature`, CSV, or Markdown |
+| Backup / restore | Export or import all suites as JSON |
+| Delete | Click **Delete**; the toast offers undo |
 | Reorder | Drag the ⠿ grip icon on the card header |
 | Clear all | Click **Clear all** in the top header bar |
 | Dark / light mode | Click the moon/sun icon in the header |

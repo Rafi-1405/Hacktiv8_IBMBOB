@@ -6,21 +6,8 @@
   <meta name="description" content="AutoSpec QA — Transform user stories into structured BDD Gherkin test cases using AI." />
   <title>AutoSpec QA — BDD Test Case Generator</title>
 
-  <!-- Tailwind CSS via CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: ['attribute', '[data-theme="dark"]'],
-      theme: {
-        extend: {
-          fontFamily: {
-            mono: ['JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', 'monospace'],
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-          },
-        },
-      },
-    };
-  </script>
+  <!-- Locally compiled Tailwind CSS -->
+  <link rel="stylesheet" href="/static/tailwind.css" />
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -423,7 +410,22 @@
 
     /* ── Focus visible ring ────────────────────────────────────────────── */
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  </style>
+
+    .tb-wrap { flex-wrap: wrap; gap: 8px; }
+    .card-actions { flex-wrap: wrap; }
+    .search-input {
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+      border-radius: 7px; font-size: .75rem; padding: 0 10px; height: 32px; width: 170px;
+    }
+    .search-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { font-size: .66rem; font-weight: 600; padding: 1px 8px; border-radius: 99px;
+            border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; }
+    .chip-pos { color: var(--positive); } .chip-neg { color: var(--negative); } .chip-edge { color: var(--edge); }
+    .lint-box { padding: 10px 18px; font-size: .74rem; border-top: 1px solid var(--border); background: var(--surface); }
+    .edit-area { width: 100%; min-height: 340px; padding: 14px 18px; border: 0 !important; border-radius: 0 !important;
+                 font-family: 'JetBrains Mono', monospace; font-size: .79rem; line-height: 1.75; white-space: pre; }
+</style>
 </head>
 
 <body>
@@ -599,11 +601,18 @@ Examples:
     <main id="output-region" class="panel-output" aria-label="Generated test cases">
 
       <!-- Output toolbar -->
-      <div id="output-toolbar" class="hidden sticky top-0 z-10 flex items-center justify-between px-5 py-3"
+      <div id="output-toolbar" class="hidden sticky top-0 z-10 flex items-center justify-between px-5 py-3 tb-wrap"
            style="background: var(--bg); border-bottom: 1px solid var(--border-soft);">
         <div class="flex items-center gap-2.5">
           <span class="toolbar-label">Results</span>
           <span id="output-count" class="count-badge">0</span>
+          <input id="search" type="search" class="search-input" placeholder="Search…  ( / )"
+                 aria-label="Search generated suites" />
+          <button id="expand-all" type="button" class="btn-ghost">Expand all</button>
+          <button id="collapse-all" type="button" class="btn-ghost">Collapse all</button>
+          <button id="export-all" type="button" class="btn-ghost" title="Download every suite as JSON">Backup</button>
+          <button id="import-btn" type="button" class="btn-ghost" title="Restore from a backup JSON">Import</button>
+          <input id="import-file" type="file" accept="application/json,.json" hidden />
         </div>
         <div class="flex items-center gap-2 text-xs" style="color: var(--muted);">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -762,15 +771,23 @@ AC:
     }
 
     /* ── Toast ──────────────────────────────────────────────────────────── */
-    function showToast(msg, type = 'success') {
+    function showToast(msg, type = 'success', undo = null) {
       clearTimeout(toastTimer);
       const isErr = type === 'error';
       toastEl.style.cssText = isErr
         ? 'background:rgba(240,96,92,0.15);border:1px solid rgba(240,96,92,0.35);color:var(--negative);'
         : 'background:rgba(45,212,160,0.12);border:1px solid rgba(45,212,160,0.3);color:var(--positive);';
       toastEl.textContent = msg;
+      toastEl.style.pointerEvents = undo ? 'auto' : 'none';
+      if (undo) {
+        const b = document.createElement('button');
+        b.textContent = 'Undo';
+        b.style.cssText = 'margin-left:12px;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;';
+        b.onclick = () => { undo(); toastEl.classList.remove('show'); };
+        toastEl.appendChild(b);
+      }
       toastEl.classList.add('show');
-      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2800);
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), undo ? 6000 : 2800);
     }
 
     /* ── Char counter ───────────────────────────────────────────────────── */
@@ -878,6 +895,7 @@ AC:
         <!-- Collapseable body -->
         <div id="body-${r.id}" class="gherkin-body">
           <pre class="gherkin-pre" tabindex="0" aria-label="Gherkin output for: ${r.title.replace(/"/g,'&quot;')}">${highlight(r.gherkin)}</pre>
+          ${statsHtml(r.gherkin)}
           <!-- Action bar -->
           <div class="card-actions">
             <button class="btn-ghost copy-btn" data-id="${r.id}" aria-label="Copy Gherkin to clipboard">
@@ -896,6 +914,10 @@ AC:
               </svg>
               ${r.pinned ? 'Pinned' : 'Pin'}
             </button>
+            <button class="btn-ghost edit-btn" aria-label="Edit Gherkin">Edit</button>
+            <button class="btn-ghost dl-btn" data-fmt="feature" aria-label="Download .feature file">.feature</button>
+            <button class="btn-ghost dl-btn" data-fmt="csv" aria-label="Download CSV">CSV</button>
+            <button class="btn-ghost dl-btn" data-fmt="md" aria-label="Download Markdown">MD</button>
             <div class="flex-1"></div>
             <button class="btn-ghost delete-btn" data-id="${r.id}"
                     aria-label="Delete this result"
@@ -913,6 +935,15 @@ AC:
       `;
 
       /* ── Toggle open/close ── */
+      const titleEl = el.querySelector('.card-header span.flex-1');
+      titleEl.title = 'Double-click to rename';
+      titleEl.addEventListener('dblclick', e => {
+        e.stopPropagation();
+        const r2 = results.find(x => x.id === r.id);
+        const v = prompt('Rename suite', r2.title);
+        if (v && v.trim()) { r2.title = v.trim(); saveResults(); renderAll(); }
+      });
+
       const hdr = el.querySelector('.card-header');
       function toggle() {
         const r2 = results.find(x => x.id === r.id);
@@ -942,6 +973,33 @@ AC:
       });
 
       /* ── Pin ── */
+      el.querySelectorAll('.dl-btn').forEach(b => b.addEventListener('click', e => {
+        e.stopPropagation();
+        const r2 = results.find(x => x.id === r.id);
+        if (r2) { exportRecord(r2, b.dataset.fmt); showToast(`Downloaded .${b.dataset.fmt === 'md' ? 'md' : b.dataset.fmt}`); }
+      }));
+
+      el.querySelector('.edit-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        const r2 = results.find(x => x.id === r.id);
+        const pre = el.querySelector('.gherkin-pre');
+        if (!r2 || !pre) return;
+        el.setAttribute('draggable', 'false');
+        const ta = document.createElement('textarea');
+        ta.className = 'edit-area';
+        ta.value = r2.gherkin;
+        ta.spellcheck = false;
+        ta.setAttribute('aria-label', 'Edit Gherkin');
+        pre.replaceWith(ta);
+        const bar = document.createElement('div');
+        bar.className = 'card-actions';
+        bar.innerHTML = '<button class="btn-ghost sv" style="color:var(--positive);border-color:var(--positive);">Save changes</button><button class="btn-ghost cn">Cancel</button>';
+        ta.after(bar);
+        ta.focus();
+        bar.querySelector('.sv').onclick = () => { r2.gherkin = ta.value.trim(); saveResults(); renderAll(); showToast('Changes saved ✓'); };
+        bar.querySelector('.cn').onclick = () => renderAll();
+      });
+
       el.querySelector('.pin-btn').addEventListener('click', e => {
         e.stopPropagation();
         const r2 = results.find(x => x.id === r.id);
@@ -955,11 +1013,11 @@ AC:
       /* ── Delete ── */
       el.querySelector('.delete-btn').addEventListener('click', e => {
         e.stopPropagation();
-        if (!confirm('Delete this test suite?')) return;
+        const _i = results.findIndex(x => x.id === r.id), _rm = results[_i];
         results = results.filter(x => x.id !== r.id);
         saveResults();
         renderAll();
-        showToast('Result deleted');
+        showToast('Result deleted', 'error', () => { results.splice(Math.min(_i, results.length), 0, _rm); saveResults(); renderAll(); });
       });
 
       /* ── Drag & Drop ── */
@@ -1013,7 +1071,12 @@ AC:
       });
 
       resultsList.innerHTML = '';
-      sorted.forEach(r => resultsList.appendChild(renderCard(r)));
+      const q = query.trim().toLowerCase();
+      const shown = q ? sorted.filter(r => (r.title + ' ' + r.gherkin).toLowerCase().includes(q)) : sorted;
+      shown.forEach(r => resultsList.appendChild(renderCard(r)));
+      if (q && !shown.length) {
+        resultsList.innerHTML = `<p class="text-xs" style="color:var(--muted);text-align:center;padding:40px 0;">No suites match “${escHtml(query)}”</p>`;
+      }
 
       const hasResults = results.length > 0;
       emptyState.style.display    = hasResults ? 'none' : '';
@@ -1033,11 +1096,11 @@ AC:
 
     /* ── Clear all ───────────────────────────────────────────────────────── */
     clearAllBtn.addEventListener('click', () => {
-      if (!confirm(`Delete all ${results.length} result(s)?`)) return;
+      const _bk = results.slice();
       results = [];
       saveResults();
       renderAll();
-      showToast('All results cleared');
+      showToast('All results cleared', 'error', () => { results = _bk; saveResults(); renderAll(); });
     });
 
     /* ── Generate ────────────────────────────────────────────────────────── */
@@ -1144,6 +1207,114 @@ AC:
     });
 
     /* ── Boot ────────────────────────────────────────────────────────────── */
+    /* ══ NEW FEATURES ═════════════════════════════════════════════════════ */
+    let query = '';
+    const $ = id => document.getElementById(id);
+    const CAT = { pos: 'Positive', neg: 'Negative', edge: 'Edge case' };
+
+    /* -- Parse + lint Gherkin (functional: structure validator & stats) -- */
+    function parseG(g) {
+      const scs = []; let sec = '', cur = null;
+      g.split('\n').forEach(l => {
+        const t = l.trim();
+        if (/^## POSITIVE/i.test(t)) sec = 'pos';
+        else if (/^## NEGATIVE/i.test(t)) sec = 'neg';
+        else if (/^## EDGE/i.test(t)) sec = 'edge';
+        else if (/^Scenario/i.test(t)) { cur = { cat: sec, name: t.replace(/^Scenario( Outline)?:\s*/i, ''), steps: [] }; scs.push(cur); }
+        else if (cur && /^(Given|When|Then|And|But)\s/.test(t)) cur.steps.push(t);
+      });
+      return scs;
+    }
+    function lint(scs) {
+      const out = [], n = { pos: 0, neg: 0, edge: 0 }, seen = new Set();
+      scs.forEach(s => {
+        if (n[s.cat] !== undefined) n[s.cat]++;
+        const kw = s.steps.map(x => x.split(/\s/)[0]), nm = s.name || '(unnamed)';
+        ['Given', 'When', 'Then'].forEach(k => { if (!kw.includes(k)) out.push(`“${nm}” is missing a ${k} step`); });
+        const key = nm.toLowerCase();
+        if (seen.has(key)) out.push(`Duplicate scenario name: “${nm}”`);
+        seen.add(key);
+      });
+      [['pos', 'Positive'], ['neg', 'Negative'], ['edge', 'Edge case']].forEach(([k, l]) => {
+        if (n[k] < 2) out.push(`${l} section has fewer than 2 scenarios`);
+      });
+      return { n, out };
+    }
+    function statsHtml(g) {
+      const scs = parseG(g), { n, out } = lint(scs);
+      const chips = `<span class="chip">${scs.length} scenarios</span><span class="chip chip-pos">${n.pos} positive</span><span class="chip chip-neg">${n.neg} negative</span><span class="chip chip-edge">${n.edge} edge</span>`;
+      const status = out.length
+        ? `<details style="margin-top:6px;color:var(--edge);"><summary style="cursor:pointer;">⚠ ${out.length} issue${out.length > 1 ? 's' : ''} found</summary><ul style="margin:6px 0 0 16px;list-style:disc;">${out.map(x => `<li>${escHtml(x)}</li>`).join('')}</ul></details>`
+        : `<div style="margin-top:6px;color:var(--positive);">✓ Structure looks valid</div>`;
+      return `<div class="lint-box"><div class="chips">${chips}</div>${status}</div>`;
+    }
+
+    /* -- Export (functional): .feature / CSV / Markdown -- */
+    function slug(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'test-suite'; }
+    function download(name, text, mime) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+      a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+    function exportRecord(r, fmt) {
+      const base = slug(r.title);
+      if (fmt === 'feature') return download(base + '.feature', r.gherkin + '\n', 'text/plain');
+      const scs = parseG(r.gherkin);
+      if (fmt === 'csv') {
+        const q = s => '"' + String(s).replace(/"/g, '""') + '"';
+        const rows = [['Suite', 'Category', 'Scenario', 'Steps', 'Status'],
+          ...scs.map(s => [r.title, CAT[s.cat] || '', s.name, s.steps.join('\n'), 'Not run'])];
+        return download(base + '.csv', '\ufeff' + rows.map(x => x.map(q).join(',')).join('\r\n'), 'text/csv');
+      }
+      const cell = s => s.replace(/\|/g, '\\|');
+      const md = `# ${r.title}\n\n| # | Category | Scenario | Steps | Status |\n|---|---|---|---|---|\n` +
+        scs.map((s, i) => `| ${i + 1} | ${CAT[s.cat] || ''} | ${cell(s.name)} | ${s.steps.map(cell).join('<br>')} | ☐ |`).join('\n') + '\n';
+      download(base + '.md', md, 'text/markdown');
+    }
+
+    /* -- Toolbar wiring: search, expand/collapse, backup/import -- */
+    $('search').addEventListener('input', e => { query = e.target.value; renderAll(); });
+    $('search').addEventListener('keydown', e => { if (e.key === 'Escape') { e.target.value = ''; query = ''; renderAll(); } });
+    document.addEventListener('keydown', e => {
+      if (e.key === '/' && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) { e.preventDefault(); $('search').focus(); }
+    });
+    $('expand-all').addEventListener('click', () => { results.forEach(r => r.open = true); saveResults(); renderAll(); });
+    $('collapse-all').addEventListener('click', () => { results.forEach(r => r.open = false); saveResults(); renderAll(); });
+    $('export-all').addEventListener('click', () => {
+      download('autospec-backup-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(results, null, 2), 'application/json');
+      showToast('Backup downloaded');
+    });
+    $('import-btn').addEventListener('click', () => $('import-file').click());
+    $('import-file').addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      f.text().then(t => {
+        try {
+          const a = JSON.parse(t);
+          if (!Array.isArray(a)) throw 0;
+          const ok = a.filter(x => x && typeof x.gherkin === 'string').map(x => ({
+            id: 'r-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+            title: String(x.title || 'Imported suite'), gherkin: x.gherkin,
+            ts: x.ts || Date.now(), pinned: !!x.pinned, open: false,
+          }));
+          if (!ok.length) throw 0;
+          results = [...ok, ...results]; saveResults(); renderAll();
+          showToast(`Imported ${ok.length} suite(s) ✓`);
+        } catch { showToast('Invalid backup file', 'error'); }
+        e.target.value = '';
+      });
+    });
+
+    /* -- Draft autosave (QoL) -- */
+    const DRAFT = 'autospec-draft';
+    textarea.addEventListener('input', () => { try { localStorage.setItem(DRAFT, textarea.value); } catch {} });
+    try {
+      const d = localStorage.getItem(DRAFT);
+      if (d) { textarea.value = d; textarea.dispatchEvent(new Event('input')); showToast('Draft restored'); }
+    } catch {}
+
     loadResults();
     renderAll();
 

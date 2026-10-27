@@ -41,8 +41,13 @@ if not GEMINI_API_KEY:
 
 # google-genai v2: client is instantiated per-request (stateless, thread-safe)
 # We create a module-level client when the key is present.
+# A 6-minute timeout accommodates slow Gemini responses instead of retrying too early.
 _client: genai.Client | None = (
-    genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+    genai.Client(
+        api_key=GEMINI_API_KEY,
+        http_options=genai_types.HttpOptions(timeout=360_000),
+    )
+    if GEMINI_API_KEY else None
 )
 
 app = FastAPI(
@@ -157,9 +162,11 @@ async def serve_ui():
 
 
 @app.post("/generate", response_model=GenerateResponse)
-async def generate_test_cases(payload: GenerateRequest):
+def generate_test_cases(payload: GenerateRequest):
     """
     Accept a user story / requirement, call Gemini, and return structured Gherkin.
+    Plain def (not async) so FastAPI runs it in a thread-pool worker — blocking
+    Gemini calls and time.sleep retries no longer freeze the event loop.
     """
     logger.info("Generate request received (%d chars)", len(payload.input_text))
 
@@ -174,6 +181,7 @@ async def generate_test_cases(payload: GenerateRequest):
     _MAX_RETRIES = 3
     _RETRY_DELAYS = [3, 7, 15]   # seconds between attempts
     last_exc: Exception | None = None
+    response = None
 
     for attempt in range(_MAX_RETRIES):
         try:
@@ -199,7 +207,13 @@ async def generate_test_cases(payload: GenerateRequest):
                     detail="The input was blocked by the AI safety filter. Please rephrase.",
                 ) from exc
             # 503 / 429 are transient — retry with back-off
-            is_transient = "503" in err_str or "429" in err_str or "UNAVAILABLE" in err_str.upper()
+            is_transient = (
+                "503" in err_str
+                or "429" in err_str
+                or "504" in err_str
+                or "DEADLINE_EXCEEDED" in err_str.upper()
+                or "UNAVAILABLE" in err_str.upper()
+            )
             if is_transient and attempt < _MAX_RETRIES - 1:
                 delay = _RETRY_DELAYS[attempt]
                 logger.warning(

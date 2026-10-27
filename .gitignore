@@ -1,39 +1,53 @@
 ﻿# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.pyc
-*.egg
-*.egg-info/
-dist/
-build/
-
-# Virtual environments
 .venv/
+.venv*/
 venv/
+venv*/
 env/
 ENV/
 .virtualenv/
-
-# Secrets and environment
-.env
-.env.local
-.env.*.local
-
-# IDE and editors
-.vscode/
-.idea/
-*.suo
-*.sw?
-.DS_Store
-Thumbs.db
-
-# Test and coverage
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
 .coverage
 htmlcov/
+dist/
+build/
+.eggs/
+*.bak
+*.tmp
 
-# Logs
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Node (build tooling only - NOT needed at runtime)
+node_modules/
+package*.json
+/src/
+/tailwind.config.js
+
+# Screenshots (local testing artefacts)
+screenshots/
+
+# OS artefacts
+.DS_Store
+Thumbs.db
 *.log
 logs/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Playwright test script (not needed in prod)
+playwright-test.js
